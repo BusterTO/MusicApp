@@ -1,0 +1,96 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+
+import '../../../extension.dart';
+import '../../../providers/account_provider.dart';
+import '../../../providers/playlist_detail_provider.dart';
+import '../../../repository.dart';
+import '../../common/playlist/track_list_container.dart';
+import '../widgets/track_tile.dart';
+import 'music_list_header.dart';
+import 'playlist_flexible_app_bar.dart';
+
+const double kHeaderHeight = 280 + kToolbarHeight;
+
+/// page display a Playlist
+///
+/// Playlist : a list of musics by user collected
+class PlaylistDetailPage extends HookConsumerWidget {
+  const PlaylistDetailPage(
+    this.playlistId, {
+    super.key,
+  });
+
+  final int playlistId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detail = ref.watch(
+      playlistDetailProvider(playlistId).logErrorOnDebug(),
+    );
+    final absorberHandle = useMemoized(SliverOverlapAbsorberHandle.new);
+    return Scaffold(
+      backgroundColor: context.colorScheme.background,
+      body: detail.when(
+        data: (detail) => TrackTileContainer.playlist(
+          playlist: detail,
+          userId: ref.read(userIdProvider),
+          child: CustomScrollView(
+            slivers: <Widget>[
+              SliverOverlapAbsorber(handle: absorberHandle),
+              _Appbar(playlist: detail),
+              _MusicList(detail),
+            ],
+          ),
+        ),
+        error: (error, stacktrace) => Center(
+          child: Text(context.formattedError(error)),
+        ),
+        loading: () => const Center(
+          child: SizedBox.square(
+            dimension: 24,
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Appbar extends StatelessWidget {
+  const _Appbar({super.key, required this.playlist});
+
+  final PlaylistDetail playlist;
+
+  @override
+  Widget build(BuildContext context) => SliverAppBar(
+        elevation: 0,
+        pinned: true,
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        expandedHeight: kHeaderHeight,
+        bottom: MusicListHeader(playlist.tracks.length),
+        flexibleSpace: PlaylistFlexibleAppBar(playlist: playlist),
+      );
+}
+
+///body display the list of song item and a header of playlist
+class _MusicList extends ConsumerWidget {
+  const _MusicList(this.playlist);
+
+  final PlaylistDetail playlist;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => TrackTile(
+          track: playlist.tracks[index],
+          index: index + 1,
+        ),
+        childCount: playlist.tracks.length,
+      ),
+    );
+  }
+}

@@ -1,0 +1,70 @@
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../extension.dart';
+import '../../providers/account_provider.dart';
+import '../../providers/favorite_tracks_provider.dart';
+import '../../providers/player_provider.dart';
+import '../../repository.dart';
+import 'buttons.dart';
+import 'material/user.dart';
+
+class LikeButton extends ConsumerWidget {
+  const LikeButton({
+    super.key,
+    required this.music,
+    this.iconSize,
+    this.padding = const EdgeInsets.all(8),
+    this.color,
+    this.likedColor,
+  });
+
+  static Widget current(BuildContext context) {
+    return Consumer(
+      builder: (context, ref, child) => LikeButton(
+        music: ref.watch(playingTrackProvider),
+      ),
+    );
+  }
+
+  final Track? music;
+
+  final double? iconSize;
+
+  final EdgeInsetsGeometry padding;
+
+  final Color? color;
+
+  final Color? likedColor;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isLiked = music != null && ref.watch(musicIsFavoriteProvider(music!));
+    return AppIconButton(
+      icon:
+          isLiked ? FluentIcons.heart_24_filled : FluentIcons.heart_24_regular,
+      size: iconSize ?? 24,
+      color: isLiked ? (likedColor ?? context.colorScheme.primary) : color,
+      padding: padding,
+      enable: music != null,
+      onPressed: () async {
+        if (!ref.read(isLoginProvider)) {
+          final login = await showNeedLoginToast(context);
+          if (!login) {
+            return;
+          }
+        }
+        if (!isLiked) {
+          await ref
+              .read(userFavoriteMusicListProvider.notifier)
+              .likeMusic(music!);
+        } else {
+          await ref
+              .read(userFavoriteMusicListProvider.notifier)
+              .dislikeMusic(music!);
+        }
+      },
+    );
+  }
+}
